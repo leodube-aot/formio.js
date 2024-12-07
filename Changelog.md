@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Initial commit with addition of ADVANCED conditions in Logic area of components(https://aottech.atlassian.net/browse/FWF-3425). 
  - Moving npm package from personal to organization npm (https://aottech.atlassian.net/browse/FWF-3658)
 
-## [Unreleased: 4.21.6-rc.2]
+## 4.21.6-rc.2
 ### Changed
  - Update text-mask-addons to formio.4
 
