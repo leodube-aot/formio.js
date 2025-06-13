@@ -18,8 +18,9 @@ export default class IsEmptyValue extends ConditionOperator {
         const isEmptyValue = _.isEmpty(typeof value === 'number'? String(value): value);
 
         if (instance && instance.root) {
-            const conditionTriggerComponent = instance.root.getComponent(conditionComponentPath);
-            return conditionTriggerComponent?.isEmpty ? conditionTriggerComponent.isEmpty() : isEmptyValue;
+            let conditionTriggerComponent = instance.root.getComponent(conditionComponentPath);
+            conditionTriggerComponent = Array.isArray(conditionTriggerComponent) ? conditionTriggerComponent[0] : conditionTriggerComponent;
+            return conditionTriggerComponent ? conditionTriggerComponent.isEmpty() : isEmptyValue;
         }
 
         return  isEmptyValue;
