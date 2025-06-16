@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Initial commit with addition of ADVANCED conditions in Logic area of components(https://aottech.atlassian.net/browse/FWF-3425). 
  - Moving npm package from personal to organization npm (https://aottech.atlassian.net/browse/FWF-3658)
 
+## 4.21.7
+### Changed
+ - Official Release
+
 ## 4.21.7-rc.1
 ### Changed
  - FIO-10245 Fixing issue with getComponent returning an array for DataGrid
