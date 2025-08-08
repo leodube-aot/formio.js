@@ -1,7 +1,6 @@
 import Field from '../field/Field';
-import { GlobalFormio as Formio } from '../../../Formio';
+import { Formio } from '../../../Formio';
 import _ from 'lodash';
-import NativePromise from 'native-promise-only';
 import { getItemTemplateKeys } from '../../../utils/utils';
 
 export default class ListComponent extends Field {
@@ -24,6 +23,19 @@ export default class ListComponent extends Field {
   get selectData() {
     const selectData = _.get(this.root, 'submission.metadata.selectData', {});
     return _.get(selectData, this.path);
+  }
+
+  get dataReady() {
+    // If the root submission has been set, and we are still not attached, then assume
+    // that our data is ready.
+    if (
+      (this.root &&
+      this.root.submissionSet &&
+      !this.attached) || !this.visible
+    ) {
+      return Promise.resolve();
+    }
+    return this.itemsLoaded;
   }
 
   get shouldLoad() {
@@ -118,13 +130,20 @@ export default class ListComponent extends Field {
     const template = this.sanitize(this.getOptionTemplate(data, value, index), this.shouldSanitizeValue);
     if (template) {
       const label = template.replace(/<\/?[^>]+(>|$)/g, '');
-      const hasTranslator = this.i18next?.translator;
-      if (!label || (hasTranslator && !this.t(label, { _userInput: true }))) return;
-      return hasTranslator ? template.replace(label, this.t(label, { _userInput: true })) : label;
+      if (!label) return;
+      return template.replace(label, this.t(label, { _userInput: true }));
     }
     else {
       return this.sanitize(JSON.stringify(data), this.shouldSanitizeValue);
     }
+  }
+
+  get itemsLoaded() {
+    return this._itemsLoaded || Promise.resolve();
+  }
+
+  set itemsLoaded(promise) {
+    this._itemsLoaded = promise;
   }
 
   handleLoadingError(err) {
@@ -137,13 +156,13 @@ export default class ListComponent extends Field {
       component: this.component,
       message: err.toString(),
     });
-    console.warn(`Unable to load resources for ${this.key}`);
+    console.warn(this.t('loadResourcesError', {componentKey: this.key}));
   }
 
   /* eslint-disable max-statements */
   updateItems(searchInput, forceUpdate) {
     if (!this.component.data) {
-      console.warn(`Select component ${this.key} does not have data configuration.`);
+      console.warn(this.t('noSelectDataConfiguration', {componentKey: this.key}));
       this.itemsLoadedResolve();
       return;
     }
@@ -179,7 +198,7 @@ export default class ListComponent extends Field {
             this.loadItems(resourceUrl, searchInput, this.requestHeaders);
           }
           catch (err) {
-            console.warn(`Unable to load resources for ${this.key}`);
+            console.warn(this.t('loadResourcesError', {componentKey: this.key}));
           }
         }
         else {
@@ -194,6 +213,7 @@ export default class ListComponent extends Field {
           return;
         }
         let { url } = this.component.data;
+        url = _.trim(url);
         let method;
         let body;
         if (url.startsWith('/')) {
@@ -225,7 +245,7 @@ export default class ListComponent extends Field {
         }
 
         if (!window.indexedDB) {
-          window.alert("Your browser doesn't support current version of indexedDB");
+          window.alert(this.t('indexedDBSupportError'));
         }
 
         if (this.component.indexeddb && this.component.indexeddb.database && this.component.indexeddb.table) {
@@ -252,7 +272,7 @@ export default class ListComponent extends Field {
             const db = event.target.result;
             const transaction = db.transaction(this.component.indexeddb.table, 'readwrite');
             const objectStore = transaction.objectStore(this.component.indexeddb.table);
-            new NativePromise((resolve) => {
+            new Promise((resolve) => {
               const responseItems = [];
               objectStore.getAll().onsuccess = (event) => {
                 event.target.result.forEach((item) => {

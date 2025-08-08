@@ -3,7 +3,7 @@ import EditFormUtils from './_classes/component/editForm/utils';
 import BaseEditForm from './_classes/component/Component.form';
 import _ from 'lodash';
 export default class Components {
-  static _editFormUtils = EditFormUtils
+  static _editFormUtils = EditFormUtils;
 
   static _baseEditForm = BaseEditForm;
 
@@ -79,6 +79,9 @@ export default class Components {
     }
     else {
       comp = new Component(component, options, data);
+    }
+    if (comp.path) {
+      comp.componentsMap[comp.path] = comp;
     }
     return comp;
   }

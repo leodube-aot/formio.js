@@ -2,6 +2,7 @@ import assert from 'assert';
 import sinon from 'sinon';
 import fetchMock from 'fetch-mock';
 
+import { Formio } from '../../Formio';
 import S3 from './s3';
 import { withRetries } from './util';
 

@@ -4,12 +4,6 @@ import BuilderUtils from './utils/builder';
 import _ from 'lodash';
 import { fastCloneDeep } from './utils/utils';
 
-let dragula;
-if (typeof window !== 'undefined') {
-  // Import from "dist" because it would require and "global" would not be defined in Angular apps.
-  dragula = require('dragula/dist/dragula');
-}
-
 export default class WizardBuilder extends WebformBuilder {
   constructor() {
     let element, options;
@@ -112,7 +106,7 @@ export default class WizardBuilder extends WebformBuilder {
     return (pages && (pages.length >= this.page)) ? pages[this.page] : null;
   }
 
-  set form(value) {
+  setForm(value) {
     this._form = value;
     if (!this._form.components || !Array.isArray(this._form.components)) {
       this._form.components = [];
@@ -122,7 +116,16 @@ export default class WizardBuilder extends WebformBuilder {
       const components = this._form.components.filter((component) => component.type !== 'button');
       this._form.components = [this.getPageConfig(1, components)];
     }
+    else {
+      const components = this._form.components
+        .filter((component) => component.type !== 'button' || component.action !== 'submit');
+      this._form.components = components;
+    }
     this.rebuild();
+  }
+
+  set form(value) {
+    this.setForm(value);
   }
 
   get form() {
@@ -169,11 +172,9 @@ export default class WizardBuilder extends WebformBuilder {
       page.parentNode.dragInfo = { index };
     });
 
-    if (dragula) {
-      this.navigationDragula = dragula([this.element.querySelector('.wizard-pages')], {
-        // Don't move Add Page button
+    if (this.dragulaLib) {
+      this.navigationDragula = this.dragulaLib([this.element.querySelector('.wizard-pages')], {
         moves: (el) => (!el.classList.contains('wizard-add-page')),
-        // Don't allow dragging components after Add Page button
         accepts: (el, target, source, sibling) => (sibling ? true : false),
       })
         .on('drop', this.onReorder.bind(this));
@@ -259,7 +260,7 @@ export default class WizardBuilder extends WebformBuilder {
     const isSiblingAnAddPageButton = sibling?.classList.contains('wizard-add-page');
     // We still can paste before Add Page button
     if (!element.dragInfo || (sibling && !sibling.dragInfo && !isSiblingAnAddPageButton)) {
-      console.warn('There is no Drag Info available for either dragged or sibling element');
+      console.warn(this.t('noDragInfoError'));
       return;
     }
     const oldPosition = element.dragInfo.index;
@@ -302,10 +303,23 @@ export default class WizardBuilder extends WebformBuilder {
     if (component instanceof WizardBuilder) {
       return;
     }
+    if (!window.sessionStorage) {
+      return console.warn(this.t('sessionStorageSupportError'));
+    }
+    // If pasting after the Wizard's page, check if a full Wizard page was copied and pass it to addPage method
     if (this._form.components.find(comp => _.isEqual(component.component, comp))) {
-      this.addPage(component);
+      const data = window.sessionStorage.getItem('formio.clipboard');
+      if (data) {
+        const schema = JSON.parse(data);
+        // If the copied component is not a Wizard's page, do nothing since we can't paste outside the panel in Wizard
+        if (schema.type !== 'panel') {
+          return;
+        }
+        this.addPage(schema);
+      }
     }
     else {
+      // If we are not trying to paster after the current Wizard's page, just pass it to the WebformBuilder
       return super.pasteComponent(component);
     }
   }
