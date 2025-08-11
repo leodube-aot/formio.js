@@ -1,12 +1,7 @@
 import _ from 'lodash';
 import NestedArrayComponent from '../_classes/nestedarray/NestedArrayComponent';
-import { fastCloneDeep, getFocusableElements } from '../../utils/utils';
-
-let dragula;
-if (typeof window !== 'undefined') {
-  // Import from "dist" because it would require and "global" would not be defined in Angular apps.
-  dragula = require('dragula/dist/dragula');
-}
+import { fastCloneDeep, getFocusableElements, getComponent } from '../../utils';
+import dragula from 'dragula';
 
 export default class DataGridComponent extends NestedArrayComponent {
   static schema(...extend) {
@@ -167,9 +162,9 @@ export default class DataGridComponent extends NestedArrayComponent {
 
   /**
    * Split rows into chunks.
-   * @param {Number[]} groups - array of numbers where each item is size of group
+   * @param {number[]} groups - array of numbers where each item is size of group
    * @param {Array<T>} rows - rows collection
-   * @return {Array<T[]>}
+   * @returns {Array<T[]>} - The chunked rows
    */
   getRowChunks(groups, rows) {
     const [, chunks] = groups.reduce(
@@ -184,7 +179,7 @@ export default class DataGridComponent extends NestedArrayComponent {
   /**
    * Create groups object.
    * Each key in object represents index of first row in group.
-   * @return {Object}
+   * @returns {object} - The groups object.
    */
   getGroups() {
     const groups = _.get(this.component, 'rowGroups', []);
@@ -206,8 +201,8 @@ export default class DataGridComponent extends NestedArrayComponent {
   }
 
   /**
-   * Retrun group sizes.
-   * @return {Number[]}
+   * Get group sizes.
+   * @returns {number[]} - The array of group sizes.
    */
   getGroupSizes() {
     return _.map(_.get(this.component, 'rowGroups', []), 'numberOfRows');
@@ -312,15 +307,6 @@ export default class DataGridComponent extends NestedArrayComponent {
     }, false);
   }
 
-  loadRefs(element, refs) {
-    super.loadRefs(element, refs);
-
-    if (refs['messageContainer'] === 'single') {
-      const container = _.last(element.querySelectorAll('[ref=messageContainer]'));
-      this.refs['messageContainer'] = container || this.refs['messageContainer'];
-    }
-  }
-
   attach(element) {
     this.loadRefs(element, {
       [`${this.datagridKey}-row`]: 'multiple',
@@ -329,7 +315,6 @@ export default class DataGridComponent extends NestedArrayComponent {
       [`${this.datagridKey}-removeRow`]: 'multiple',
       [`${this.datagridKey}-group-header`]: 'multiple',
       [this.datagridKey]: 'multiple',
-      'messageContainer': 'single'
     });
 
     if (this.allowReorder) {
@@ -337,43 +322,41 @@ export default class DataGridComponent extends NestedArrayComponent {
         row.dragInfo = { index };
       });
 
-      if (dragula) {
-        this.dragula = dragula([this.refs[`${this.datagridKey}-tbody`]], {
-          moves: (_draggedElement, _oldParent, clickedElement) => {
-            const clickedElementKey = clickedElement.getAttribute('data-key');
-            const oldParentKey = _oldParent.getAttribute('data-key');
+      this.dragula = dragula([this.refs[`${this.datagridKey}-tbody`]], {
+        moves: (_draggedElement, _oldParent, clickedElement) => {
+          const clickedElementKey = clickedElement.getAttribute('data-key');
+          const oldParentKey = _oldParent.getAttribute('data-key');
 
-            //Check if the clicked button belongs to that container, if false, it belongs to the nested container
-            if (oldParentKey === clickedElementKey) {
-              return clickedElement.classList.contains('formio-drag-button');
+          //Check if the clicked button belongs to that container, if false, it belongs to the nested container
+          if (oldParentKey === clickedElementKey) {
+            return clickedElement.classList.contains('formio-drag-button');
+          }
+        }
+      }).on('drop', this.onReorder.bind(this));
+
+      this.dragula.on('cloned', (el, original) => {
+        if (el && el.children && original && original.children) {
+          _.each(original.children, (child, index) => {
+            const styles = getComputedStyle(child, null);
+
+            if (styles.cssText !== '') {
+              el.children[index].style.cssText = styles.cssText;
             }
-          }
-        }).on('drop', this.onReorder.bind(this));
+            else {
+              const cssText = Object.values(styles).reduce(
+                (css, propertyName) => {
+                  return `${css}${propertyName}:${styles.getPropertyValue(
+                    propertyName
+                  )};`;
+                },
+                ''
+              );
 
-        this.dragula.on('cloned', (el, original) => {
-          if (el && el.children && original && original.children) {
-            _.each(original.children, (child, index) => {
-              const styles = getComputedStyle(child, null);
-
-              if (styles.cssText !== '') {
-                el.children[index].style.cssText = styles.cssText;
-              }
-              else {
-                const cssText = Object.values(styles).reduce(
-                  (css, propertyName) => {
-                    return `${css}${propertyName}:${styles.getPropertyValue(
-                      propertyName
-                    )};`;
-                  },
-                  ''
-                );
-
-                el.children[index].style.cssText = cssText;
-              }
-            });
-          }
-        });
-      }
+              el.children[index].style.cssText = cssText;
+            }
+          });
+        }
+      });
     }
 
     this.refs[`${this.datagridKey}-addRow`].forEach((addButton) => {
@@ -411,6 +394,14 @@ export default class DataGridComponent extends NestedArrayComponent {
     return this.component.components;
   }
 
+  /**
+   * Reorder values in array based on the old and new position
+   * @param {any} valuesArr - An array of values.
+   * @param {number} oldPosition - The index of the value in array before reordering.
+   * @param {number} newPosition - The index of the value in array after reordering.
+   * @param {boolean|any} movedBelow - Whether or not the value is moved below.
+   * @returns {void}
+   */
   reorderValues(valuesArr, oldPosition, newPosition, movedBelow) {
     if (!_.isArray(valuesArr) || _.isEmpty(valuesArr)) {
       return;
@@ -435,7 +426,6 @@ export default class DataGridComponent extends NestedArrayComponent {
     const movedBelow = newPosition > oldPosition;
     const dataValue = fastCloneDeep(this.dataValue);
     this.reorderValues(dataValue, oldPosition, newPosition, movedBelow);
-
     //reorder select data
     this.reorderValues(_.get(this.root, `submission.metadata.selectData.${this.path}`, []), oldPosition, newPosition, movedBelow);
 
@@ -484,7 +474,7 @@ export default class DataGridComponent extends NestedArrayComponent {
       row
     });
     this.checkConditions();
-    this.triggerChange();
+    this.triggerChange({ modified: true });
     this.redraw().then(() => {
       this.focusOnNewRowElement(this.rows[index]);
     });
@@ -498,7 +488,6 @@ export default class DataGridComponent extends NestedArrayComponent {
       }
       component.rowIndex = rowIndex;
       component.row = `${rowIndex}-${colIndex}`;
-      component.path = this.calculateComponentPath(component);
     });
   }
 
@@ -572,6 +561,20 @@ export default class DataGridComponent extends NestedArrayComponent {
       const options = _.clone(this.options);
       options.name += `[${rowIndex}]`;
       options.row = `${rowIndex}-${colIndex}`;
+      options.rowIndex = rowIndex;
+      options.onChange = (flags, changed, modified) => {
+        if (changed.component.type === 'form') {
+          const formComp = getComponent(this.component.components, changed.component.key)
+          _.set(formComp, 'components', changed.component.components);
+        }
+        // If we're in a nested form we need to ensure our changes are triggered upstream
+        if (changed.instance.root?.id && (this.root?.id !== changed.instance.root.id)) {
+          changed.instance.root.triggerChange(flags, changed, modified);
+        }
+        else {
+          this.triggerChange({ modified });
+        }
+      }
 
       let columnComponent;
 
@@ -596,33 +599,6 @@ export default class DataGridComponent extends NestedArrayComponent {
       components[col.key] = component;
     });
     return components;
-  }
-
-  /**
-   * Checks the validity of this datagrid.
-   *
-   * @param data
-   * @param dirty
-   * @return {*}
-   */
-  checkValidity(data, dirty, row, silentCheck) {
-    data = data || this.rootValue;
-    row = row || this.data;
-
-    if (!this.checkCondition(row, data)) {
-      this.setCustomValidity('');
-      return true;
-    }
-
-    if (!this.checkComponentValidity(data, dirty, row, { silentCheck })) {
-      return false;
-    }
-
-    const isValid = this.checkRows('checkValidity', data, dirty, true, silentCheck);
-
-    this.checkModal(isValid, dirty);
-
-    return isValid;
   }
 
   checkColumns(data, flags = {}) {
@@ -651,7 +627,14 @@ export default class DataGridComponent extends NestedArrayComponent {
 
           if (col.component.logic && firstRowCheck) {
             const compIndex = _.findIndex(this.columns, ['key', key]);
-            if (!_.isEqual(this.columns[compIndex], col.component)) {
+            const equalColumns = _.isEqualWith(this.columns[compIndex], col.component, (col1, col2, key) => {
+              // Don't compare columns by their auto-generated ids.
+              if (key === 'id') {
+                return true;
+              }
+            });
+
+            if (!equalColumns) {
               logicRebuild = true;
               this.columns[compIndex] = col.component;
             }
@@ -734,57 +717,6 @@ export default class DataGridComponent extends NestedArrayComponent {
 
     this.updateOnChange(flags, changed);
     return changed;
-  }
-
-  restoreComponentsContext() {
-    this.rows.forEach((row, index) => _.forIn(row, (component) => component.data = this.dataValue[index]));
-  }
-
-  getComponent(path, fn) {
-    path = Array.isArray(path) ? path : [path];
-    const [key, ...remainingPath] = path;
-    let result = [];
-    if (_.isNumber(key) && remainingPath.length) {
-      const compKey = remainingPath.pop();
-      result = this.rows[key][compKey];
-      // If the component is inside a Layout Component, try to find it among all the row's components
-      if (!result) {
-        Object.entries(this.rows[key]).forEach(([, comp]) => {
-          if ('getComponent' in comp) {
-            const possibleResult = comp.getComponent([compKey], fn);
-            if (possibleResult) {
-              result = possibleResult;
-            }
-          }
-        });
-      }
-      if (result && _.isFunction(fn)) {
-        fn(result, this.getComponents());
-      }
-      if (remainingPath.length && 'getComponent' in result) {
-        return result.getComponent(remainingPath, fn);
-      }
-      return result;
-    }
-    if (!_.isString(key)) {
-      return result;
-    }
-
-    this.everyComponent((component, components) => {
-      if (component.component.key === key) {
-        let comp = component;
-        if (remainingPath.length > 0 && 'getComponent' in component) {
-          comp = component.getComponent(remainingPath, fn);
-        }
-        else if (fn) {
-          fn(component, components);
-        }
-
-        result = result.concat(comp);
-      }
-    });
-
-    return result.length > 0 ? result : null;
   }
 
   toggleGroup(element, index) {

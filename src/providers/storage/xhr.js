@@ -1,4 +1,3 @@
-import NativePromise from 'native-promise-only';
 import _trim from 'lodash/trim';
 export const setXhrHeaders = (formio, xhr) => {
   const { headers } = formio.options;
@@ -63,17 +62,16 @@ const XHR = {
     return await XHR.makeXhrRequest(formio, xhrCallback, serverResponse, progressCallback, abortCallback);
   },
   makeXhrRequest(formio, xhrCallback, serverResponse, progressCallback, abortCallback) {
-    return new NativePromise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       // Send the file with data.
-      let xhr = new XMLHttpRequest();
+      const xhr = new XMLHttpRequest();
       xhr.openAndSetHeaders = (...params) => {
         xhr.open(...params);
         setXhrHeaders(formio, xhr);
       };
-      NativePromise.resolve(xhrCallback(xhr, serverResponse, abortCallback)).then((payload) => {
+      Promise.resolve(xhrCallback(xhr, serverResponse, abortCallback)).then((payload) => {
         // if payload is nullish we can assume the provider took care of the entire upload process
         if (!payload) {
-          xhr = null;
           return resolve(serverResponse);
         }
         // Fire on network error.

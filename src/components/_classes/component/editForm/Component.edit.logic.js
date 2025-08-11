@@ -1,5 +1,5 @@
 import EditFormUtils from './utils';
-import { getContextComponents, getConditionalComparisonOptions, listOfComponentsForConditionalChaining } from '../../../../utils/utils';
+import { getContextComponents } from '../../../../utils';
 
 /* eslint-disable quotes, max-len */
 export default [
@@ -11,6 +11,7 @@ export default [
     templates: {
       header: '<div class="row"> \n  <div class="col-sm-6">\n    <strong>{{ value.length }} {{ ctx.t("Advanced Logic Configured") }}</strong>\n  </div>\n</div>',
       row: '<div class="row"> \n  <div class="col-sm-6">\n    <div>{{ row.name }} </div>\n  </div>\n  <div class="col-sm-2"> \n    <div class="btn-group pull-right"> \n      <button class="btn btn-default editRow">{{ ctx.t("Edit") }}</button> \n      <button class="btn btn-danger removeRow">{{ ctx.t("Delete") }}</button> \n    </div> \n  </div> \n</div>',
+      footer: '',
     },
     type: 'editgrid',
     addAnother: 'Add Logic',
@@ -52,10 +53,6 @@ export default [
                       label: 'Simple',
                     },
                     {
-                      value: 'advanced',
-                      label: 'Advanced',
-                    },
-                    {
                       value: 'javascript',
                       label: 'Javascript',
                     },
@@ -72,36 +69,6 @@ export default [
                 dataSrc: 'values',
                 template: '<span>{{ item.label }}</span>',
                 type: 'select',
-              },
-              {
-                type: 'select',
-                input: true,
-                label: 'When',
-                key: 'whenAndOr',
-                tooltip: 'Selecting this will handle the below conditions with AND or OR logic',
-                dataSrc: 'values',
-                customConditional({ row }) {
-                  return row.type === 'advanced';
-                },
-                validate: {
-                  required: true,
-                },
-                data: {
-                  values: [
-                    { label: 'When all conditions are met(AND)', value: '&&' },
-                    { label: 'When any conditions are met(OR)', value: '||' }
-                  ]
-                }
-              },
-              {
-                input: true,
-                key: 'showAdvanced',
-                label: 'Show',
-                type: 'hidden',
-                tableView: false,
-                calculateValue() {
-                  return true;
-                },
               },
               {
                 weight: 10,
@@ -133,7 +100,7 @@ export default [
                     tableView: false,
                     data: {
                       custom(context) {
-                        return getContextComponents(context,null,null,listOfComponentsForConditionalChaining);
+                        return getContextComponents(context);
                       },
                     },
                   },
@@ -146,152 +113,6 @@ export default [
                   },
                 ],
               },
-                  {
-                    weight: 20,
-                    input: true,
-                    label: 'Conditions',
-                    key: 'advanced',
-                    tableView: false,
-                    templates: {
-                      header: '<div class="row"> \n  <div class="col-sm-6"><strong>{{ value.length }} {{ ctx.t("conditions") }}</strong></div>\n</div>',
-                      row: '<div class="row"> \n  <div class="col-sm-6">\n    <div>{{ row.name }} </div>\n  </div>\n  <div class="col-sm-2"> \n    <div class="btn-group pull-right"> \n      <button class="btn btn-default editRow">{{ ctx.t("Edit") }}</button> \n      <button class="btn btn-danger removeRow">{{ ctx.t("Delete") }}</button> \n    </div> \n  </div> \n</div>',
-                      footer: '',
-                    },
-                    type: 'editgrid',
-                    addAnother: 'Add condition',
-                    saveRow: 'Save condition',
-                    customConditional({ row }) {
-                      return row.type === 'advanced' && row.whenAndOr;
-                    },
-                    components: [
-                      {
-                        weight: 0,
-                        title: 'Condition',
-                        input: false,
-                        key: 'conditionPanel',
-                        type: 'panel',
-                        components: [
-                          {
-                            type: 'textfield',
-                            input: true,
-                            label: 'Name',
-                            key: 'name',
-                            tableView: false,
-                            validate: {
-                              required: true,
-                            },
-                          },
-                          {
-                            type: 'select',
-                            input: true,
-                            label: 'Form component',
-                            key: 'whenAdvanced',
-                            dataSrc: 'custom',
-                            valueProperty: 'value',
-                            tableView: false,
-                            data: {
-                              custom(context) {
-                                return getContextComponents(context,null,null,listOfComponentsForConditionalChaining);
-                              },
-                            },
-                            validate: {
-                              required: true,
-                            },
-                          },
-                          {
-                            weight: 0,
-                            input: true,
-                            label: 'Condition',
-                            key: 'operatorAdvanced',
-                            tableView: false,
-                            valueProperty: 'value',
-                            // lazyLoad: true,
-                            validate: {
-                              required: true,
-                            },
-                            data: {
-                              custom( value ) {
-                                // console.log('value-=',value);
-                                if (value?.instance?.options?.editForm?.components) {
-                                  // console.log('value 0 -',value);
-                                   const selectedItemDataType = value?.instance.options.editForm.components?.find(item => item.key === value?.row?.whenAdvanced)?.type;
-                                   // console.log('selectedItemDataType 1-=',selectedItemDataType);
-                                   if (selectedItemDataType) {
-                                   return getConditionalComparisonOptions(selectedItemDataType);
-                                   }
-                                }
-                                return getConditionalComparisonOptions();
-                              }
-                            },
-                            dataSrc: 'custom',
-                            template: '<span>{{ item.label }}</span>',
-                            type: 'select',
-                            customConditional({ row }) {
-                              return row.whenAdvanced !== '';
-                            },
-                          },
-                          {
-                            type: 'textfield',
-                            input: true,
-                            label: 'Value',
-                            key: 'eqAdvanced',
-                            tableView: false,
-                            validate: {
-                              required: true,
-                            },
-                            customConditional(value) {
-                              let show = false;
-                              if (value?.instance?.options?.editForm?.components) {
-                                const selectedItemDataType = value.instance.options.editForm.components?.find(item => item.key === value?.row?.whenAdvanced)?.type;
-                                const row = value.row;
-                                if ((selectedItemDataType !== "selectboxes" && selectedItemDataType !== "radio" && selectedItemDataType !== "select") && row.whenAdvanced !== '' && row.operatorAdvanced !== '' && row.operatorAdvanced !== 'isEmpty' && row.operatorAdvanced !== 'isNotEmpty') {
-                                  show = true;
-                                }
-                              }
-                              return show;
-                            },
-                          },
-                          {
-                            type: 'select',
-                            input: true,
-                            label: 'Value',
-                            key: 'eqAdvancedFromDropdown',
-                            tableView: false,
-                            validate: {
-                              required: true,
-                            },
-                            valueProperty: 'value',
-                            data: {
-                              custom( value ) {
-                               // console.log('selectOptions value-=',value);
-                                if (value?.instance?.options?.editForm?.components) {
-                                   const selectOptionsData = value?.instance.options.editForm.components?.find(item => item.key === value?.row?.whenAdvanced);
-                                   const selectOptions = selectOptionsData?.values || selectOptionsData?.data?.values;
-                                 //  console.log('selectOptions 1-=',selectOptions);
-                                   if (selectOptions) {
-                                   return selectOptions;
-                                   }
-                                }
-                                return [];
-                              }
-                            },
-                            dataSrc: 'custom',
-                            customConditional(value) {
-                              let show = false;
-                              if (value?.instance?.options?.editForm?.components) {
-                                const selectedItemDataType = value?.instance.options.editForm.components?.find(item => item.key === value?.row?.whenAdvanced)?.type;
-                                const row = value.row;
-                                if ((selectedItemDataType === "selectboxes" || selectedItemDataType === "radio" || selectedItemDataType === "select") && row.whenAdvanced !== '' && row.operatorAdvanced !== '' && row.operatorAdvanced !== 'isEmpty' && row.operatorAdvanced !== 'isNotEmpty') {
-                                  show = true;
-                                }
-                              }
-                              return show;
-                            },
-                          },
-                        ],
-                      },
-                    ],
-                  },
               {
                 weight: 10,
                 type: 'textarea',
@@ -548,7 +369,7 @@ export default [
               {
                 weight: 20,
                 input: true,
-                label: 'Schema Defenition',
+                label: 'Schema Definition',
                 key: 'schemaDefinition',
                 editor: 'ace',
                 as: 'javascript',

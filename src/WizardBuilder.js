@@ -2,13 +2,7 @@ import WebformBuilder from './WebformBuilder';
 import Webform from './Webform';
 import BuilderUtils from './utils/builder';
 import _ from 'lodash';
-import { fastCloneDeep } from './utils/utils';
-
-let dragula;
-if (typeof window !== 'undefined') {
-  // Import from "dist" because it would require and "global" would not be defined in Angular apps.
-  dragula = require('dragula/dist/dragula');
-}
+import { fastCloneDeep } from './utils';
 
 export default class WizardBuilder extends WebformBuilder {
   constructor() {
@@ -112,7 +106,7 @@ export default class WizardBuilder extends WebformBuilder {
     return (pages && (pages.length >= this.page)) ? pages[this.page] : null;
   }
 
-  set form(value) {
+  setForm(value) {
     this._form = value;
     if (!this._form.components || !Array.isArray(this._form.components)) {
       this._form.components = [];
@@ -122,7 +116,16 @@ export default class WizardBuilder extends WebformBuilder {
       const components = this._form.components.filter((component) => component.type !== 'button');
       this._form.components = [this.getPageConfig(1, components)];
     }
+    else {
+      const components = this._form.components
+        .filter((component) => component.type !== 'button' || component.action !== 'submit');
+      this._form.components = components;
+    }
     this.rebuild();
+  }
+
+  set form(value) {
+    this.setForm(value);
   }
 
   get form() {
@@ -169,11 +172,9 @@ export default class WizardBuilder extends WebformBuilder {
       page.parentNode.dragInfo = { index };
     });
 
-    if (dragula) {
-      this.navigationDragula = dragula([this.element.querySelector('.wizard-pages')], {
-        // Don't move Add Page button
+    if (this.dragulaLib) {
+      this.navigationDragula = this.dragulaLib([this.element.querySelector('.wizard-pages')], {
         moves: (el) => (!el.classList.contains('wizard-add-page')),
-        // Don't allow dragging components after Add Page button
         accepts: (el, target, source, sibling) => (sibling ? true : false),
       })
         .on('drop', this.onReorder.bind(this));

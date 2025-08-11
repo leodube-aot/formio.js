@@ -1,8 +1,7 @@
 import Field from '../field/Field';
-import { GlobalFormio as Formio } from '../../../Formio';
+import { Formio } from '../../../Formio';
 import _ from 'lodash';
-import NativePromise from 'native-promise-only';
-import { getItemTemplateKeys } from '../../../utils/utils';
+import { getItemTemplateKeys } from '../../../utils';
 
 export default class ListComponent extends Field {
   static schema(...extend) {
@@ -24,6 +23,19 @@ export default class ListComponent extends Field {
   get selectData() {
     const selectData = _.get(this.root, 'submission.metadata.selectData', {});
     return _.get(selectData, this.path);
+  }
+
+  get dataReady() {
+    // If the root submission has been set, and we are still not attached, then assume
+    // that our data is ready.
+    if (
+      (this.root &&
+      this.root.submissionSet &&
+      !this.attached) || !this.visible
+    ) {
+      return Promise.resolve();
+    }
+    return this.itemsLoaded;
   }
 
   get shouldLoad() {
@@ -118,13 +130,20 @@ export default class ListComponent extends Field {
     const template = this.sanitize(this.getOptionTemplate(data, value, index), this.shouldSanitizeValue);
     if (template) {
       const label = template.replace(/<\/?[^>]+(>|$)/g, '');
-      const hasTranslator = this.i18next?.translator;
-      if (!label || (hasTranslator && !this.t(label, { _userInput: true }))) return;
-      return hasTranslator ? template.replace(label, this.t(label, { _userInput: true })) : label;
+      if (!label) return;
+      return template.replace(label, this.t(label, { _userInput: true }));
     }
     else {
       return this.sanitize(JSON.stringify(data), this.shouldSanitizeValue);
     }
+  }
+
+  get itemsLoaded() {
+    return this._itemsLoaded || Promise.resolve();
+  }
+
+  set itemsLoaded(promise) {
+    this._itemsLoaded = promise;
   }
 
   handleLoadingError(err) {
@@ -194,6 +213,7 @@ export default class ListComponent extends Field {
           return;
         }
         let { url } = this.component.data;
+        url = _.trim(url);
         let method;
         let body;
         if (url.startsWith('/')) {
@@ -252,7 +272,7 @@ export default class ListComponent extends Field {
             const db = event.target.result;
             const transaction = db.transaction(this.component.indexeddb.table, 'readwrite');
             const objectStore = transaction.objectStore(this.component.indexeddb.table);
-            new NativePromise((resolve) => {
+            new Promise((resolve) => {
               const responseItems = [];
               objectStore.getAll().onsuccess = (event) => {
                 event.target.result.forEach((item) => {

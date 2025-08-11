@@ -1,4 +1,4 @@
-import { GlobalFormio as Formio } from '../Formio';
+import { Formio } from '../Formio';
 import InputWidget from './InputWidget';
 import {
   convertFormatToFlatpickr,
@@ -12,8 +12,8 @@ import {
   momentDate,
   zonesLoaded,
   shouldLoadZones,
-  loadZones,
-} from '../utils/utils';
+  loadZones
+} from '../utils';
 import moment from 'moment';
 import _ from 'lodash';
 
@@ -69,8 +69,7 @@ export default class CalendarWidget extends InputWidget {
 
   /**
    * Load the timezones.
-   *
-   * @return {boolean} TRUE if the zones are loading, FALSE otherwise.
+   * @returns {boolean} TRUE if the zones are loading, FALSE otherwise.
    */
   loadZones() {
     const timezone = this.timezone;
@@ -308,11 +307,11 @@ export default class CalendarWidget extends InputWidget {
   }
 
   /**
-   * Return the date value.
-   *
-   * @param date
-   * @param format
-   * @return {string}
+   * Return the date value as a string.
+   * @param {string|Date} date - The date object or a date string that is momentjs compatible.
+   * @param {string} format - The DateParser code format.
+   * @param {boolean} [useTimezone] - If the timezone should be used.
+   * @returns {string} - Returns the formatted date string.
    */
   getDateValue(date, format, useTimezone) {
     if (useTimezone) {
@@ -323,8 +322,7 @@ export default class CalendarWidget extends InputWidget {
 
   /**
    * Return the value of the selected date.
-   *
-   * @return {*}
+   * @returns {*} - The value of the selected date.
    */
   getValue() {
     // Standard output format.
@@ -351,8 +349,8 @@ export default class CalendarWidget extends InputWidget {
 
   /**
    * Set the selected date value.
-   *
-   * @param value
+   * @param {*} value - The value to set.
+   * @returns {void}
    */
   setValue(value) {
     const saveAsText = (this.settings.saveAs === 'text');
@@ -378,7 +376,7 @@ export default class CalendarWidget extends InputWidget {
     }
   }
 
-  getValueAsString(value, format) {
+  getValueAsString(value, format = '') {
     const inputFormat = format || this.dateFormat;
     const valueFormat = this.calendar ? this.valueFormat : this.settings.dateFormat;
     if (this.settings.saveAs === 'text' && this.componentInstance.parent && !this.settings.readOnly) {
@@ -402,7 +400,8 @@ export default class CalendarWidget extends InputWidget {
     }
   }
 
-  validationValue(value) {
+  get validationValue() {
+    const value = this.dataValue;
     if (typeof value === 'string') {
       return new Date(value);
     }
@@ -424,7 +423,7 @@ export default class CalendarWidget extends InputWidget {
   initFlatpickr(Flatpickr) {
     // Create a new flatpickr.
     this.calendar = new Flatpickr(this._input, { ...this.settings, disableMobile: true });
-    this.calendar.altInput.addEventListener('input', (event) => {
+    this.addEventListener(this.calendar.altInput, 'input', (event) => {
       if (this.settings.allowInput && this.settings.currentValue !== event.target.value) {
         this.settings.manualInputValue = event.target.value;
         this.settings.isManuallyOverriddenValue = true;
@@ -498,6 +497,15 @@ export default class CalendarWidget extends InputWidget {
       }
     });
 
+    // If other fields are used to calculate disabled dates, we need to redraw calendar to refresh disabled dates
+    if (this.settings.disableFunction && this.componentInstance && this.componentInstance.root) {
+      this.componentInstance.root.on('change', (e) => {
+        if (e.changed && this.calendar) {
+          this.calendar.redraw();
+        }
+      });
+    }
+
     // Restore the calendar value from the component value.
     this.setValue(this.componentValue);
   }
@@ -543,10 +551,10 @@ export default class CalendarWidget extends InputWidget {
     };
   }
 
-  destroy() {
-    super.destroy();
+  destroy(all = false) {
     if (this.calendar) {
       this.calendar.destroy();
     }
+    super.destroy(all);
   }
 }

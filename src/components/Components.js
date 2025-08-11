@@ -3,7 +3,7 @@ import EditFormUtils from './_classes/component/editForm/utils';
 import BaseEditForm from './_classes/component/Component.form';
 import _ from 'lodash';
 export default class Components {
-  static _editFormUtils = EditFormUtils
+  static _editFormUtils = EditFormUtils;
 
   static _baseEditForm = BaseEditForm;
 
@@ -65,7 +65,7 @@ export default class Components {
       // eslint-disable-next-line new-cap
       comp = new Components.components['datagrid'](component, options, data);
     }
-    else if (component.tree) {
+    else if (component.tree || (component.input && Array.isArray(component.components))) {
       // eslint-disable-next-line new-cap
       comp = new Components.components['nesteddata'](component, options, data);
     }
@@ -79,6 +79,15 @@ export default class Components {
     }
     else {
       comp = new Component(component, options, data);
+    }
+    if (comp.path) {
+      comp.componentsMap[comp.path] = comp;
+    }
+    // Reset the componentMatches on the root element if any new component is created.
+    let parent = comp.parent;
+    while (parent) {
+      parent.componentMatches = {};
+      parent = parent.parent;
     }
     return comp;
   }

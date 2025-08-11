@@ -1,8 +1,7 @@
 import SignaturePad from 'signature_pad';
-import _ResizeObserver from 'resize-observer-polyfill';
 import Input from '../_classes/input/Input';
 import _ from 'lodash';
-import { componentValueTypes, getComponentSavedTypes } from '../../utils/utils';
+import { componentValueTypes, getComponentSavedTypes } from '../../utils';
 
 export default class SignatureComponent extends Input {
   static schema(...extend) {
@@ -181,7 +180,9 @@ export default class SignatureComponent extends Input {
         this.setDataToSigaturePad();
       }
 
-      this.showCanvas(true);
+      if (!this.disabled) {
+        this.showCanvas(true);
+      }
     }
   }
 
@@ -199,7 +200,7 @@ export default class SignatureComponent extends Input {
   getModalPreviewTemplate() {
     return this.renderModalPreview({
       previewText: this.dataValue ?
-        `<img src=${this.dataValue} ref='openModal' style="width: 100%;height: 100%;" />` :
+        `<img src=${this.dataValue} ${this._referenceAttributeName}='openModal' style="width: 100%;height: 100%;" />` :
         this.t('Click to Sign')
     });
   }
@@ -233,7 +234,7 @@ export default class SignatureComponent extends Input {
         }
 
         if (!this.builderMode && !this.options.preview) {
-          this.observer = new _ResizeObserver(() => {
+          this.observer = new ResizeObserver(() => {
             this.checkSize();
           });
 

@@ -1,8 +1,7 @@
 /* global Quill */
 import TextFieldComponent from '../textfield/TextField';
 import _ from 'lodash';
-import NativePromise from 'native-promise-only';
-import { uniqueName, getBrowserInfo } from '../../utils/utils';
+import { uniqueName, getBrowserInfo } from '../../utils';
 
 export default class TextAreaComponent extends TextFieldComponent {
   static schema(...extend) {
@@ -66,7 +65,15 @@ export default class TextAreaComponent extends TextFieldComponent {
     info.content = value;
     if ((this.options.readOnly || this.disabled) && !this.isHtmlRenderMode()) {
       const elementStyle = this.info.attr.style || '';
-      const children = `<div ref="input" class="formio-editor-read-only-content" ${elementStyle ? `style='${elementStyle}'` : ''}></div>`;
+      const children = `
+        <div ${this._referenceAttributeName}="input"
+          class="formio-editor-read-only-content"
+          ${elementStyle ? `style='${elementStyle}'` : ''}
+          role="textbox"
+          aria-multiline="true"
+          aria-readonly="true"
+        >
+        </div>`;
 
       return this.renderTemplate('well', {
         children,
@@ -90,8 +97,8 @@ export default class TextAreaComponent extends TextFieldComponent {
 
   /**
    * Updates the editor value.
-   *
-   * @param newValue
+   * @param {number} index - The index of the editor.
+   * @param {any} newValue - The new editor value.
    */
   updateEditorValue(index, newValue) {
     newValue = this.getConvertedValue(this.trimBlanks(newValue));
@@ -130,7 +137,7 @@ export default class TextAreaComponent extends TextFieldComponent {
       : this.component.wysiwyg;
 
     // Keep track of when this editor is ready.
-    this.editorsReady[index] = new NativePromise((editorReady) => {
+    this.editorsReady[index] = new Promise((editorReady) => {
       // Attempt to add a wysiwyg editor. In order to add one, it must be included on the global scope.
       switch (this.component.editor) {
         case 'ace':
@@ -356,6 +363,31 @@ export default class TextAreaComponent extends TextFieldComponent {
     return this.component.as && this.component.as === 'json';
   }
 
+  /**
+   * Normalize values coming into updateValue. For example, depending on the configuration, string value `"true"` will be normalized to boolean `true`.
+   * @param {*} value - The value to normalize
+   * @returns {*} - Returns the normalized value
+   */
+  normalizeValue(value) {
+    if (this.component.multiple && Array.isArray(value)) {
+      return value.map((singleValue) => this.normalizeSingleValue(singleValue));
+    }
+
+    return super.normalizeValue(this.normalizeSingleValue(value));
+  }
+
+  normalizeSingleValue(value) {
+    if (_.isNil(value)) {
+      return;
+    }
+
+    return this.isJsonValue ? value : String(value);
+  }
+
+  isSingleInputValue() {
+    return !this.component.multiple;
+  }
+
   setConvertedValue(value, index) {
     if (this.isJsonValue && !_.isNil(value)) {
       try {
@@ -398,12 +430,12 @@ export default class TextAreaComponent extends TextFieldComponent {
         });
     }
     else {
-      return NativePromise.resolve(value);
+      return Promise.resolve(value);
     }
   }
 
   setImagesUrl(images) {
-    return NativePromise.all(_.map(images, image => {
+    return Promise.all(_.map(images, image => {
       let requestData;
       try {
         requestData = JSON.parse(image.getAttribute('alt'));

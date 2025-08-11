@@ -1,8 +1,7 @@
 import _ from 'lodash';
-import NativePromise from 'native-promise-only';
 import Field from '../_classes/field/Field';
 import Input from '../_classes/input/Input';
-import { componentValueTypes, eachComponent, getArrayFromComponentPath, getComponentSavedTypes } from '../../utils/utils';
+import { componentValueTypes, eachComponent, getArrayFromComponentPath, getComponentSavedTypes } from '../../utils';
 
 export default class ButtonComponent extends Field {
   static schema(...extend) {
@@ -39,7 +38,7 @@ export default class ButtonComponent extends Field {
 
   constructor(component, options, data) {
     super(component, options, data);
-    this.filesUploading = [];
+    this.filesUploading = 0;
   }
 
   get defaultSchema() {
@@ -163,17 +162,14 @@ export default class ButtonComponent extends Field {
         this.setContent(this.refs.buttonMessage, resultMessage);
       }, true);
 
-      this.on('fileUploadingStart', (filePromise) => {
-        this.filesUploading.push(filePromise);
+      this.on('fileUploadingStart', () => {
+        this.filesUploading++;
         this.disabled = true;
         this.setDisabled(this.refs.button, this.disabled);
       }, true);
 
-      this.on('fileUploadingEnd', (filePromise) => {
-        const index = this.filesUploading.indexOf(filePromise);
-        if (index !== -1) {
-          this.filesUploading.splice(index, 1);
-        }
+      this.on('fileUploadingEnd', () => {
+        this.filesUploading--;
         this.disabled = this.shouldDisabled ? true : false;
         this.setDisabled(this.refs.button, this.disabled);
       }, true);
@@ -215,7 +211,7 @@ export default class ButtonComponent extends Field {
       const isSilent = flags && flags.silent;
       //check root validity only if disableOnInvalid is set and when it is not possible to make submission because of validation errors
       if (flags && flags.noValidate && (this.component.disableOnInvalid || this.hasError)) {
-        isValid = flags.rootValidity || (this.root ? this.root.checkValidity(this.root.data, null, null, true) : true);
+        isValid = flags.rootValidity || (this.root ? (this.root.validate(this.root.data, { dirty: false, silentCheck: true }).length === 0) : true);
         flags.rootValidity = isValid;
       }
       this.isDisabledOnInvalid = this.component.disableOnInvalid && (isSilent || !isValid);
@@ -254,6 +250,11 @@ export default class ButtonComponent extends Field {
     this.disabled = this.shouldDisabled;
     this.setDisabled(this.refs.button, this.disabled);
 
+    /**
+     * Get url parameter by name
+     * @param {string} name - The url parameter
+     * @returns {string} - The url parameter value
+     */
     function getUrlParameter(name) {
       name = name.replace(/[[]/, '\\[').replace(/[\]]/, '\\]');
       const regex = new RegExp(`[\\?&]${name}=([^&#]*)`);
@@ -274,7 +275,7 @@ export default class ButtonComponent extends Field {
   }
 
   get shouldDisabled() {
-    return super.shouldDisabled || !!this.filesUploading?.length || this.isDisabledOnInvalid;
+    return super.shouldDisabled || this.filesUploading > 0 || this.isDisabledOnInvalid;
   }
 
   attach(element) {
@@ -314,6 +315,7 @@ export default class ButtonComponent extends Field {
         event.stopPropagation();
         this.loading = true;
         this.emit('submitButton', {
+          noValidate: this.component.state === 'draft',
           state: this.component.state || 'submitted',
           component: this.component,
           instance: this
@@ -453,7 +455,7 @@ export default class ButtonComponent extends Field {
             return;
           }
           // Depending on where the settings came from, submit to either the submission endpoint (old) or oauth endpoint (new).
-          let requestPromise = NativePromise.resolve();
+          let requestPromise = Promise.resolve();
 
           if (_.has(this, 'root.form.config.oauth') && this.root.form.config.oauth[this.component.oauthProvider]) {
             params.provider = settings.provider;

@@ -31,7 +31,6 @@ import PasswordComponent from './password/Password';
 import PhoneNumberComponent from './phonenumber/PhoneNumber';
 import RadioComponent from './radio/Radio';
 import ReCaptchaComponent from './recaptcha/ReCaptcha';
-import ResourceComponent from './resource/Resource';
 import SelectBoxesComponent from './selectboxes/SelectBoxes';
 import SelectComponent from './select/Select';
 import SignatureComponent from './signature/Signature';
@@ -42,7 +41,6 @@ import TagsComponent from './tags/Tags';
 import TextAreaComponent from './textarea/TextArea';
 import TextFieldComponent from './textfield/TextField';
 import TimeComponent from './time/Time';
-import TreeComponent from './tree/Tree';
 import UnknownComponent from './unknown/Unknown';
 import UrlComponent from './url/Url';
 import WellComponent from './well/Well';
@@ -82,7 +80,6 @@ export default {
   phoneNumber: PhoneNumberComponent,
   radio: RadioComponent,
   recaptcha: ReCaptchaComponent,
-  resource: ResourceComponent,
   select: SelectComponent,
   selectboxes: SelectBoxesComponent,
   signature: SignatureComponent,
@@ -93,7 +90,6 @@ export default {
   textarea: TextAreaComponent,
   textfield: TextFieldComponent,
   time: TimeComponent,
-  tree: TreeComponent,
   unknown: UnknownComponent,
   url: UrlComponent,
   well: WellComponent,
