@@ -1,4 +1,4 @@
-import { getContextButtons } from '../../../utils/utils';
+import { getContextButtons } from '../../../utils';
 export default [
   {
     key: 'recaptchaInfo',
@@ -23,6 +23,9 @@ export default [
         value: 'buttonClick'
       }
     ],
+    validate: {
+      required: true
+    },
     weight: 650
   },
   {

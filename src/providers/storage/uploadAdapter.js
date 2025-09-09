@@ -1,5 +1,4 @@
-import { uniqueName } from '../../utils/utils';
-import NativePromise from 'native-promise-only';
+import { uniqueName } from '../../utils';
 
 /**
  * UploadAdapter for CKEditor https://ckeditor.com/docs/ckeditor5/latest/framework/guides/deep-dive/upload-adapter.html
@@ -13,7 +12,7 @@ class FormioUploadAdapter {
 
   upload() {
     return this.loader.file
-      .then(file => new NativePromise((resolve, reject) => {
+      .then(file => new Promise((resolve, reject) => {
         const { uploadStorage, uploadUrl, uploadOptions, uploadDir, fileKey } = this.component.component;
         const uploadParams = [
           uploadStorage,
@@ -28,9 +27,9 @@ class FormioUploadAdapter {
           null
         ];
 
-        const uploadPromise = this.fileService.uploadFile(
+        this.fileService.uploadFile(
           ...uploadParams,
-          () => this.component.emit('fileUploadingStart', uploadPromise)
+          () => this.component.emit('fileUploadingStart')
         ).then((result) => {
           return this.fileService.downloadFile(result);
         }).then((result) => {
@@ -41,7 +40,7 @@ class FormioUploadAdapter {
           console.warn('An Error occured while uploading file', err);
           reject(err);
         }).finally(() => {
-          this.component.emit('fileUploadingEnd', uploadPromise);
+          this.component.emit('fileUploadingEnd');
         });
       }));
   }

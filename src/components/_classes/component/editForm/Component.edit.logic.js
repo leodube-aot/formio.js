@@ -1,5 +1,5 @@
 import EditFormUtils from './utils';
-import { getContextComponents, getConditionalComparisonOptions, listOfComponentsForConditionalChaining } from '../../../../utils/utils';
+import { getContextComponents, listOfComponentsForConditionalChaining, getConditionalComparisonOptions } from '../../../../utils';
 
 /* eslint-disable quotes, max-len */
 export default [
@@ -548,7 +548,7 @@ export default [
               {
                 weight: 20,
                 input: true,
-                label: 'Schema Defenition',
+                label: 'Schema Definition',
                 key: 'schemaDefinition',
                 editor: 'ace',
                 as: 'javascript',

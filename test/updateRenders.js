@@ -4,17 +4,17 @@ const pretty = require('pretty');
 // Fake a browser environment
 require('browser-env')();
 
-const Form = require('../lib/Form').default;
-const AllComponents = require('../lib/components').default;
-const Components = require('../lib/components/Components').default;
-const templates = require('../lib/templates').default;
+const Form = require('../lib/cjs/Form').default;
+const AllComponents = require('../lib/cjs/components').default;
+const Components = require('../lib/cjs/components/Components').default;
+const templates = require('../lib/cjs/templates').default;
 const forms = require('./formtest');
 // const formtests = require('./forms').default;
 
 Components.setComponents(AllComponents);
 
 const dir = './test/renders';
-const componentDir = './lib/components';
+const componentDir = './lib/cjs/components';
 if (!fs.existsSync(dir)) {
   fs.mkdirSync(dir);
 }

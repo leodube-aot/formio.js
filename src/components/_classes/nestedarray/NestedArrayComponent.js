@@ -1,7 +1,9 @@
 'use strict';
 
 import _ from 'lodash';
-import { componentValueTypes } from '../../../utils/utils';
+import { Utils } from '@formio/core/utils';
+const { getComponentPaths } = Utils;
+import { componentValueTypes } from '../../../utils';
 
 import Component from '../component/Component';
 import NestedDataComponent from '../nesteddata/NestedDataComponent';
@@ -21,19 +23,19 @@ export default class NestedArrayComponent extends NestedDataComponent {
     return this.iteratableRows[component.rowIndex].data;
   }
 
-  get isRowsDataComponent() {
-    return true;
-  }
-
   get iteratableRows() {
     throw new Error('Getter #iteratableRows() is not implemented');
   }
 
   get rowIndex() {
-    return super.rowIndex;
+    return this._rowIndex;
   }
 
   set rowIndex(value) {
+    this.paths = getComponentPaths(this.component, this.parent?.component, {
+      ...(this.parent?.paths || {}),
+      ...{ dataIndex: value }
+    });
     this._rowIndex = value;
   }
 
@@ -56,14 +58,14 @@ export default class NestedArrayComponent extends NestedDataComponent {
     row = row || this.data;
     this.checkAddButtonChanged();
 
-    return this.checkRows('checkData', data, flags, Component.prototype.checkData.call(this, data, flags, row));
+    return this.processRows('checkData', data, flags, Component.prototype.checkData.call(this, data, flags, row));
   }
 
-  checkRows(method, data, opts, defaultValue, silentCheck) {
+  processRows(method, data, opts, defaultValue, silentCheck) {
     return this.iteratableRows.reduce(
       (valid, row, rowIndex) => {
         if (!opts?.rowIndex || opts?.rowIndex === rowIndex) {
-          return this.checkRow(method, data, opts, row.data, row.components, silentCheck) && valid;
+          return this.processRow(method, data, opts, row.data, row.components, silentCheck) && valid;
         }
         else {
           return valid;
@@ -73,7 +75,17 @@ export default class NestedArrayComponent extends NestedDataComponent {
     );
   }
 
-  checkRow(method, data, opts, row, components, silentCheck) {
+  validate(data, flags = {}) {
+    data = data || this.data;
+    return this.validateComponents([this.component], data, flags);
+  }
+
+  checkRow(...args) {
+    console.log('Deprecation Warning: checkRow method has been replaced with processRow');
+    return this.processRow.call(this, ...args);
+  }
+
+  processRow(method, data, opts, row, components, silentCheck) {
     if (opts?.isolateRow) {
       silentCheck = true;
       opts.noRefresh = true;
@@ -105,42 +117,7 @@ export default class NestedArrayComponent extends NestedDataComponent {
       }, 'show'));
   }
 
-  getComponent(path, fn, originalPath) {
-    path = Array.isArray(path) ? path : [path];
-    let key = path.shift();
-    const remainingPath = path;
-    let result = [];
-    let possibleComp = null;
-    let comp = null;
-    let rowIndex = null;
-
-    if (_.isNumber(key)) {
-      rowIndex = key;
-      key = remainingPath.shift();
-    }
-    if (!_.isString(key)) {
-      return result;
-    }
-
-    this.everyComponent((component, components) => {
-      if (component.component.key === key) {
-        possibleComp = component;
-        if (remainingPath.length > 0 && 'getComponent' in component) {
-          comp = component.getComponent(remainingPath, fn, originalPath);
-        }
-        else if (fn) {
-          fn(component, components);
-        }
-        result = rowIndex !== null ? comp : result.concat(comp || possibleComp);
-      }
-    }, rowIndex);
-    if ((!result || result.length === 0) && possibleComp) {
-      result = rowIndex !== null ? possibleComp : [possibleComp];
-    }
-    return result;
-  }
-
-  everyComponent(fn, rowIndex, options) {
+  everyComponent(fn, rowIndex, options = {}) {
     if (_.isObject(rowIndex)) {
       options = rowIndex;
       rowIndex = null;
@@ -211,7 +188,7 @@ export default class NestedArrayComponent extends NestedDataComponent {
   }
 
   getComponents(rowIndex) {
-    if (rowIndex !== undefined) {
+    if (rowIndex !== undefined && rowIndex !== null) {
       if (!this.iteratableRows[rowIndex]) {
         return [];
       }

@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { componentValueTypes, getComponentSavedTypes } from '../../utils/utils';
+import { componentValueTypes, getComponentSavedTypes } from '../../utils';
 import Field from '../_classes/field/Field';
 
 export default class CheckBoxComponent extends Field {
@@ -67,13 +67,6 @@ export default class CheckBoxComponent extends Field {
 
   get defaultSchema() {
     return CheckBoxComponent.schema();
-  }
-
-  get defaultValue() {
-    const { name } = this.component;
-    const defaultValue = super.defaultValue;
-
-    return name ? (this.component[name] || this.emptyValue) : (defaultValue || this.component.defaultValue || false).toString() === 'true';
   }
 
   get labelClass() {
@@ -216,6 +209,9 @@ export default class CheckBoxComponent extends Field {
   getValueAsString(value) {
     const { name: componentName, value: componentValue } = this.component;
     const hasValue = componentName ? _.isEqual(value, componentValue) : value;
+    if (_.isUndefined(value) && this.inDataTable) {
+      return '';
+    }
 
     return this.t(hasValue ? 'Yes' : 'No');
   }

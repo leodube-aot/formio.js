@@ -1,9 +1,17 @@
-import NativePromise from 'native-promise-only';
-
 import XHR from './xhr';
 import { withRetries } from './util';
 
-const AbortController = window.AbortController || require('abortcontroller-polyfill/dist/cjs-ponyfill');
+const loadAbortControllerPolyfill = async() => {
+  if (typeof AbortController === 'undefined') {
+    await import('abortcontroller-polyfill/dist/polyfill-patch-fetch');
+  }
+};
+
+/**
+ * S3 File Services provider for file storage.
+ * @param {object} formio formio instance
+ * @returns {import('./typedefs').FileProvider} The FileProvider interface defined in index.js.
+ */
 function s3(formio) {
   return {
     async uploadFile(file, fileName, dir, progressCallback, url, options, fileKey, groupPermissions, groupId, abortCallback, multipartOptions) {
@@ -13,6 +21,7 @@ function s3(formio) {
         if (response.signed) {
           if (multipartOptions && Array.isArray(response.signed)) {
             // patch abort callback
+            await loadAbortControllerPolyfill();
             const abortController = new AbortController();
             const abortSignal = abortController.signal;
             if (typeof abortCallback === 'function') {
@@ -85,23 +94,23 @@ function s3(formio) {
     },
     async completeMultipartUpload(serverResponse, parts, multipart) {
       const { changeMessage } = multipart;
-      const token = formio.getToken();
       changeMessage('Completing AWS S3 multipart upload...');
+      const token = formio.getToken();
       const response = await fetch(`${formio.formUrl}/storage/s3/multipart/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'x-jwt-token': token } : {}),
+          ...(token ? { 'x-jwt-token': token } : {})
         },
         body: JSON.stringify({ parts, uploadId: serverResponse.uploadId, key: serverResponse.key })
       });
       const message = await response.text();
       if (!response.ok) {
-        throw new Error(message || response.statusText);
+        throw new Error(message);
       }
       // the AWS S3 SDK CompleteMultipartUpload command can return a HTTP 200 status header but still error;
       // we need to parse, and according to AWS, to retry
-      if (message?.match(/Error/)) {
+      if (message.match(/Error/)) {
           throw new Error(message);
       }
     },
@@ -112,7 +121,7 @@ function s3(formio) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'x-jwt-token': token } : {}),
+          ...(token ? { 'x-jwt-token': token } : {})
         },
         body: JSON.stringify({ uploadId, key })
       }).catch((err) => console.error('Error while aborting multipart upload:', err));
@@ -145,16 +154,20 @@ function s3(formio) {
         });
         promises.push(promise);
       }
-      return NativePromise.all(promises);
+      return Promise.all(promises);
     },
     downloadFile(file) {
       if (file.acl !== 'public-read') {
         return formio.makeRequest('file', `${formio.formUrl}/storage/s3?bucket=${XHR.trim(file.bucket)}&key=${XHR.trim(file.key)}`, 'GET');
       }
       else {
-        return NativePromise.resolve(file);
+        return Promise.resolve(file);
       }
-    }
+    },
+    deleteFile(fileInfo) {
+      const url = `${formio.formUrl}/storage/s3?bucket=${XHR.trim(fileInfo.bucket)}&key=${XHR.trim(fileInfo.key)}`;
+      return formio.makeRequest('', url, 'delete');
+    },
   };
 }
 

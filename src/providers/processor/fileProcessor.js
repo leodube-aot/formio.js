@@ -1,7 +1,11 @@
-import NativePromise from 'native-promise-only';
-
+/**
+ * Creates a file processor function.
+ * @param {Formio} formio - The Formio instance.
+ * @param {object} config - The configuration object.
+ * @returns {function(File, object): Promise<FormData>} A function that takes a file and options, and returns a Promise that resolves with the processed file.
+ */
 const fileProcessor = (formio, config) => (file, options) =>
-  new NativePromise((resolve, reject) => {
+  new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
     // Fire on network error.

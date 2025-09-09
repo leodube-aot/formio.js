@@ -1,10 +1,6 @@
-import { componentValueTypes, getComponentSavedTypes } from '../../utils/utils';
+import { componentValueTypes, getComponentSavedTypes } from '../../utils';
 import Input from '../_classes/input/Input';
-
-let Choices;
-if (typeof window !== 'undefined') {
-  Choices = require('@formio/choices.js');
-}
+import Choices from '@formio/choices.js';
 
 export default class TagsComponent extends Input {
   static schema(...extend) {
@@ -75,7 +71,9 @@ export default class TagsComponent extends Input {
     if (!element) {
       return;
     }
-    element.setAttribute('dir', this.i18next.dir());
+    if (this.i18next) {
+      element.setAttribute('dir', this.i18next.dir());
+    }
     if (this.choices) {
       this.choices.destroy();
     }
@@ -99,6 +97,8 @@ export default class TagsComponent extends Input {
     });
     this.choices.itemList.element.tabIndex = element.tabIndex;
     this.addEventListener(this.choices.input.element, 'blur', () => {
+      // Emit event to the native Formio input, so the listener attached in the Input.js will be invoked
+      element.dispatchEvent(new Event('blur'));
       const value = this.choices.input.value;
       const maxTagsNumber = this.component.maxTags;
       const valuesCount = this.choices.getValue(true).length;
@@ -125,21 +125,21 @@ export default class TagsComponent extends Input {
   }
 
   detach() {
-    super.detach();
     if (this.choices) {
       this.choices.destroy();
       this.choices = null;
     }
+    super.detach();
   }
 
   normalizeValue(value) {
     if (this.component.storeas === 'string' && Array.isArray(value)) {
-      return value.join(this.delimiter);
+      return super.normalizeValue(value.join(this.delimiter));
     }
     else if (this.component.storeas === 'array' && typeof value === 'string') {
-      return value.split(this.delimiter).filter(result => result);
+      return super.normalizeValue(value.split(this.delimiter).filter(result => result));
     }
-    return value;
+    return super.normalizeValue(value);
   }
 
   setValue(value, flags = {}) {

@@ -14,11 +14,11 @@ export default class IsEmptyValue extends ConditionOperator {
         return false;
     }
 
-    execute({ value, instance, conditionComponentPath }) {
-        const isEmptyValue = _.isEmpty(typeof value === 'number'? String(value): value);
+    execute({ value, instance, path }) {
+        const isEmptyValue = _.isEmpty(_.isNumber(value)? String(value): value);
 
-        if (instance && instance.root) {
-            const conditionTriggerComponent = instance.root.getComponent(conditionComponentPath);
+        if (instance?.root?.getComponent) {
+            const conditionTriggerComponent =  instance.root.getComponent(path);
             return conditionTriggerComponent?.isEmpty ? conditionTriggerComponent.isEmpty() : isEmptyValue;
         }
 

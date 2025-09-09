@@ -1,39 +1,26 @@
 import _ from 'lodash';
 import stringHash from 'string-hash';
-const Evaluator = {
-  noeval: false,
-  protectedEval: false, // This property can be customized only by plugins
-  cache: {},
-  templateSettings: {
-    evaluate: /\{%([\s\S]+?)%\}/g,
-    interpolate: /\{\{([\s\S]+?)\}\}/g,
-    escape: /\{\{\{([\s\S]+?)\}\}\}/g
-  },
-  evaluator(func, ...params) {
-    if (Evaluator.noeval) {
-      console.warn('No evaluations allowed for this renderer.');
-      return _.noop;
-    }
+import { DefaultEvaluator as CoreEvaluator } from '@formio/core';
 
-    if (typeof params[0] === 'object') {
-      params = _.keys(params[0]);
-    }
-    return new Function(...params, func);
-  },
+export class DefaultEvaluator extends CoreEvaluator {
+  cache = {};
+  protectedEval = false;
+
   template(template, hash) {
     hash = hash || stringHash(template);
-    if (Evaluator.cache[hash]) {
-      return Evaluator.cache[hash];
+    if (this.cache[hash]) {
+      return this.cache[hash];
     }
     try {
       // Ensure we handle copied templates from the ejs files.
       template = template.replace(/ctx\./g, '');
-      return (Evaluator.cache[hash] = _.template(template, Evaluator.templateSettings));
+      return (this.cache[hash] = _.template(template, this.templateSettings));
     }
     catch (err) {
       console.warn('Error while processing template', err, template);
     }
-  },
+  }
+
   interpolate(rawTemplate, data, _options) {
     // Ensure reverse compatability.
     const options = _.isObject(_options) ? _options : { noeval: _options };
@@ -49,34 +36,14 @@ const Evaluator = {
 
     rawTemplate = String(rawTemplate);
     let template;
-    if (Evaluator.noeval || options.noeval) {
-      // No cached template methods available. Use poor-mans interpolate without eval.
-      return rawTemplate.replace(/({{\s*(.*?)\s*}})/g, (match, $1, $2) => {
-        // Allow for conditional values.
-        const parts = $2.split('||').map(item => item.trim());
-        let value = '';
-        let path = '';
-        for (let i = 0; i < parts.length; i++) {
-          path = parts[i];
-          value = _.get(data, path);
-          if (value) {
-            break;
-          }
-        }
-        if (options.data) {
-          _.set(options.data, path, value);
-        }
-        return value;
-      });
+    if (this.noeval || options.noeval) {
+      return this.interpolateString(rawTemplate, data, _options);
     }
     else {
-      template = Evaluator.template(rawTemplate);
+      template = this.template(rawTemplate);
     }
     if (typeof template === 'function') {
       try {
-        if (data.component && data.component.filter === rawTemplate && !data.options.building) {
-          data.data = _.mapValues(data.data, (val) => _.isString(val) ? encodeURIComponent(val) : val);
-        }
         return template(data);
       }
       catch (err) {
@@ -85,16 +52,27 @@ const Evaluator = {
       }
     }
     return template;
-  },
-  evaluate(func, args) {
-    return Array.isArray(args) ? func(...args) : func(args);
   }
-};
+}
 
-Evaluator.registerEvaluator = (evaluator) => {
-  Object.keys(evaluator).forEach((key) => {
-    Evaluator[key] = evaluator[key];
-  });
-};
+export let Evaluator = new DefaultEvaluator();
 
-export default Evaluator;
+// preserve the standalone interpolate function for backwards compatibility
+/**
+ * For backwards compatibility we a standalone interpolate function. This merely calls the
+ * global mutable Evaluator instance's interpolate function.
+ * @param  {...any} args - interpolate arguments, typically "rawTemplate", "data", and "options"
+ * @returns {any} the interpolation result.
+ */
+export function interpolate(...args) {
+  return Evaluator.interpolate(...args);
+}
+
+/**
+ * Set the evaluator to use for evaluating expressions.
+ * @param {CoreEvaluator} override - The new evaluator instance to use.
+ * @returns {void}
+ */
+export function registerEvaluator(override) {
+    Evaluator = override;
+}

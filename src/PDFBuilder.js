@@ -1,10 +1,8 @@
 import _ from 'lodash';
-import NativePromise from 'native-promise-only';
-import { GlobalFormio as Formio } from './Formio';
+import { Formio } from './Formio';
 
 import WebformBuilder from './WebformBuilder';
-import { fastCloneDeep, getElementRect , getBrowserInfo } from './utils/utils';
-import { eachComponent } from './utils/formUtils';
+import { fastCloneDeep, getElementRect , getBrowserInfo, eachComponent } from './utils';
 import BuilderUtils from './utils/builder';
 import PDF from './PDF';
 
@@ -169,7 +167,7 @@ export default class PDFBuilder extends WebformBuilder {
         });
       }
 
-      return NativePromise.resolve();
+      return Promise.resolve();
     }
 
     // Normal PDF Builder
@@ -281,9 +279,9 @@ export default class PDFBuilder extends WebformBuilder {
     return this.webform;
   }
 
-  destroy(deleteFromGlobal) {
-    super.destroy(deleteFromGlobal);
-    this.webform.destroy(deleteFromGlobal);
+  destroy(all = false) {
+    super.destroy(all);
+    this.webform.destroy(all);
   }
 
   // d8b 8888888888                                                                              888
@@ -327,7 +325,7 @@ export default class PDFBuilder extends WebformBuilder {
           width: schema.width
         };
 
-        if (!this.options.noNewEdit && !component.component.noNewEdit) {
+        if (!this.options.noNewEdit && !component.component.noNewEdit && this.hasEditTabs(component.type)) {
           this.editComponent(component.component, this.getParentContainer(component), isNew);
         }
         this.emit('updateComponent', component.component);
@@ -353,7 +351,7 @@ export default class PDFBuilder extends WebformBuilder {
 
     this.webform.on('iframe-componentClick', schema => {
       const component = this.webform.getComponentById(schema.id);
-      if (component) {
+      if (component && this.hasEditTabs(component.type)) {
         this.editComponent(component.component, this.getParentContainer(component));
       }
     }, true);
@@ -479,7 +477,7 @@ export default class PDFBuilder extends WebformBuilder {
     }
 
     // Set a unique key for this component.
-    BuilderUtils.uniquify([this.webform._form], schema);
+    BuilderUtils.uniquify(this.webform._form?.components || [], schema);
     this.webform._form.components.push(schema);
 
     schema.overlay = {
@@ -500,25 +498,25 @@ export default class PDFBuilder extends WebformBuilder {
   }
 
   highlightInvalidComponents() {
-    const repeatablePaths = this.findRepeatablePaths();
+    const repeatablePathsComps = this.findComponentsWithRepeatablePaths();
 
     // update elements which path was duplicated if any pathes have been changed
-    if (!_.isEqual(this.repeatablePaths, repeatablePaths)) {
-      eachComponent(this.webform.getComponents(), (comp, path) => {
-        if (this.repeatablePaths.includes(path)) {
+    if (!_.isEqual(this.repeatablePathsComps, repeatablePathsComps)) {
+      eachComponent(this.webform.getComponents(), (comp) => {
+        if (this.repeatablePathsComps.includes(comp.component)) {
           this.webform.postMessage({ name: 'updateElement', data: comp.component });
         }
       });
 
-      this.repeatablePaths = repeatablePaths;
+      this.repeatablePathsComps = repeatablePathsComps;
     }
 
-    if (!repeatablePaths.length) {
+    if (!repeatablePathsComps.length) {
       return;
     }
 
-    eachComponent(this.webform.getComponents(), (comp, path) => {
-      if (this.repeatablePaths.includes(path)) {
+    eachComponent(this.webform.getComponents(), (comp) => {
+      if (this.repeatablePathsComps.includes(comp)) {
         this.webform.postMessage({
           name: 'showBuilderErrors',
           data: {

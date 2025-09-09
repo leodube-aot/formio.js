@@ -1,7 +1,6 @@
 import Multivalue from '../multivalue/Multivalue';
-import { convertStringToHTMLElement } from '../../../utils/utils';
+import { convertStringToHTMLElement } from '../../../utils';
 import Widgets from '../../../widgets';
-import NativePromise from 'native-promise-only';
 import _ from 'lodash';
 
 export default class Input extends Multivalue {
@@ -123,7 +122,7 @@ export default class Input extends Multivalue {
       }).trim();
       if (this.component.prefix !== calendarIcon) {
         // converting string to HTML markup to render correctly DateTime component in portal.form.io
-        return convertStringToHTMLElement(calendarIcon, '[ref="icon"]');
+        return convertStringToHTMLElement(calendarIcon, `[${this._referenceAttributeName}="icon"]`);
       }
     }
     return this.component.suffix;
@@ -173,13 +172,15 @@ export default class Input extends Multivalue {
       else {
         this.addClass(element, 'text-danger');
       }
-      this.setContent(element, this.t(`{{ remaining }} ${type} remaining.`, {
-        remaining: remaining
+      this.setContent(element, this.t(`typeRemaining`, {
+        remaining: remaining,
+        type: type
       }));
     }
     else {
-      this.setContent(element, this.t(`{{ count }} ${type}`, {
-        count: count
+      this.setContent(element, this.t(`typeCount`, {
+        count: count,
+        type: type
       }));
     }
   }
@@ -247,7 +248,7 @@ export default class Input extends Multivalue {
       element.widget.destroy();
     }
     // Attach the widget.
-    let promise = NativePromise.resolve();
+    let promise = Promise.resolve();
     element.widget = this.createWidget(index);
     if (element.widget) {
       promise = element.widget.attach(element);
@@ -277,8 +278,8 @@ export default class Input extends Multivalue {
 
   /**
    * Creates an instance of a widget for this component.
-   *
-   * @return {null}
+   * @param {number} index - The index of the widget.
+   * @returns {*} - The widget instance.
    */
   createWidget(index) {
     // Return null if no widget is found.
@@ -309,8 +310,23 @@ export default class Input extends Multivalue {
     return widget;
   }
 
+  teardown() {
+    if (this.element && this.element.widget) {
+      this.element.widget.destroy();
+      delete this.element.widget;
+    }
+    if (this.refs && this.refs.input) {
+      for (let i = 0; i <= this.refs.input.length; i++) {
+        const widget = this.getWidget(i);
+        if (widget) {
+          widget.destroy();
+        }
+      }
+    }
+    super.teardown();
+  }
+
   detach() {
-    super.detach();
     if (this.refs && this.refs.input) {
       for (let i = 0; i <= this.refs.input.length; i++) {
         const widget = this.getWidget(i);
@@ -320,5 +336,6 @@ export default class Input extends Multivalue {
       }
     }
     this.refs.input = [];
+    super.detach();
   }
 }
